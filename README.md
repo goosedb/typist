@@ -1,6 +1,6 @@
 # Typist
 
-Typist is a library for interpolation. It uses type-level strings (`Symbol`s`) for template.
+Typist is a library for interpolation. It uses type-level strings (`Symbol`s) for template. It uses `UnconsSynbol` type family which is added in GHC-9.2, so you need GHC version 9.2 or higher to use it.   
 
 Core functionality is in `Typist.Internal.Format`: 
 * Type family `Format` which transforms `Symbol` to function which renders final _string_ 
