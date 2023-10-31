@@ -20,6 +20,6 @@ question = fmt @"Hello, #{name}, do you like #{dish}?"
   (#dish $ Unquoted @String "pasta")
 ```
 
-Performance is comparable with bare concationtion with `<>`. It slightly slower. Benches can be found in `test/Bench`
+Performance is comparable with bare concatination with `<>`. It slightly slower. Benches can be found in `test/Bench`
 
 ![Alt text](./results_cpu.svg)
