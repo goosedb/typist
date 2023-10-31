@@ -57,6 +57,15 @@ main = defaultMain do
                 "One: 1, two: True, three: 'a', four: [5], five: ('a',False)"
                 "One: #{one}, two: #{two}, three: #{three}, four: #{four}, five: #{five}"
         ]
+    , testGroup
+        "Escaping"
+        [ testCase "Should not count escaped sequence as placeholer" do
+            fmt @"Hello, \\#{huh} #{name}" (#name $ Unquoted @String "Kitty")
+              `shouldBe` "Hello, \\#{huh} Kitty"
+
+            fmt @"Hello, #{name} \\#{huh}" (#name $ Unquoted @String "Kitty")
+              `shouldBe` "Hello, Kitty \\#{huh}"
+        ]
     ]
 
 shouldBe :: (Show a, Eq a) => a -> a -> Assertion
