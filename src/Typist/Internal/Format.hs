@@ -1,68 +1,72 @@
-module Typist.Internal.Format where
+{-# LANGUAGE PolyKinds  #-}
+module Typist.Internal.Format (module Rec, module Typist.Internal.Format) where
 
-import Data.Data (Proxy (..))
-import Data.Kind (Type)
-import Data.String (IsString (..))
 import qualified Data.Text.Lazy.Builder as Builder
-import GHC.TypeError (ErrorMessage (..))
 import GHC.TypeLits (
   ConsSymbol,
-  KnownSymbol,
   Nat,
   Symbol,
   TypeError,
   UnconsSymbol,
-  type (+),
+  type (+), ErrorMessage (..), symbolVal,
  )
-import GHC.TypeNats (KnownNat, natVal)
+import Data.Record.Anon as Rec
+import Data.Record.Anon.Simple (Record, get, empty)
+import Data.String (IsString(..))
+import Data.Record.Anon.Overloading (fromLabel)
+import GHC.TypeNats ( natVal, KnownNat )
 
-type family Format r (str :: Symbol) :: Type where
-  Format r str = ContFormat r 0 (UnconsSymbol str)
+type family Format (str :: Symbol) where
+  Format str = ContFormat 0 (UnconsSymbol str)
 
-newtype Arg (n :: Nat) (s :: Symbol) = Arg Builder.Builder
+newtype Arg (n :: Nat) = Arg Builder.Builder
 
-type family ContFormat r (n :: Nat) (a :: Maybe (Char, Symbol)) where
-  ContFormat r n (Just '( '\\', rest)) = SkipOne r (n + 1) (UnconsSymbol rest)
-  ContFormat r n (Just '( '#', rest)) = TryGetArg r n (UnconsSymbol rest)
-  ContFormat r n (Just '(a, rest)) = ContFormat r (n + 1) (UnconsSymbol rest)
-  ContFormat r n Nothing = r
+type family ContFormat (n :: Nat) (a :: Maybe (Char, Symbol)) where
+  ContFormat n ('Just '( '\\', rest)) = SkipOne (n + 1) (UnconsSymbol rest)
+  ContFormat n ('Just '( '#', rest)) = TryGetArg n (UnconsSymbol rest)
+  ContFormat n ('Just '(a, rest)) = ContFormat (n + 1) (UnconsSymbol rest)
+  ContFormat n 'Nothing = '[]
 
-type family TryGetArg r n rest where
-  TryGetArg r n (Just '( '{', rest)) =
-    Arg n (TakeName (UnconsSymbol rest)) ->
-    ContFormat r (n + 2) (UnconsSymbol (SkipName (UnconsSymbol rest)))
-  TryGetArg r n Nothing = ContFormat r n Nothing
-  TryGetArg r n (Just '(a, rest)) = ContFormat r (n + 2) (UnconsSymbol rest)
+type family TryGetArg n rest where
+  TryGetArg n ('Just '( '{', rest)) =
+    TakeName (UnconsSymbol rest) ':= Arg n ':
+    ContFormat (n + 2) (UnconsSymbol (SkipName (UnconsSymbol rest)))
+  TryGetArg n 'Nothing = ContFormat n 'Nothing
+  TryGetArg n ('Just '(a, rest)) = ContFormat (n + 2) (UnconsSymbol rest)
 
-type family SkipOne r (n :: Nat) (s :: Maybe (Char, Symbol)) where
-  SkipOne r n Nothing = ContFormat r n Nothing
-  SkipOne r n (Just '(a, rest)) = ContFormat r (n + 1) (UnconsSymbol rest)
+type family SkipOne (n :: Nat) (s :: Maybe (Char, Symbol)) where
+  SkipOne n 'Nothing = ContFormat n 'Nothing
+  SkipOne n ('Just '(a, rest)) = ContFormat (n + 1) (UnconsSymbol rest)
 
 type family TakeName (a :: Maybe (Char, Symbol)) :: Symbol where
-  TakeName (Just '( '}', rest)) = ""
-  TakeName (Just '(a, rest)) = ConsSymbol a (TakeName (UnconsSymbol rest))
-  TakeName 'Nothing = TypeError ('Text "Expected '}' but EOF found. Close placeholer with '}'. Example: #{name}")
+  TakeName ('Just '( '}', rest)) = ""
+  TakeName ('Just '(a, rest)) = ConsSymbol a (TakeName (UnconsSymbol rest))
+  TakeName 'Nothing = TypeError ('Text "Expected '}' but EOF found. Close placeholder with '}'. Example: #{name}")
 
 type family SkipName (a :: Maybe (Char, Symbol)) :: Symbol where
-  SkipName (Just '( '}', rest)) = rest
-  SkipName (Just '(a, rest)) = SkipName (UnconsSymbol rest)
-  SkipName Nothing = ""
+  SkipName ('Just '( '}', rest)) = rest
+  SkipName ('Just '(a, rest)) = SkipName (UnconsSymbol rest)
+  SkipName 'Nothing = ""
 
-class Interpolate cont f where
-  interpolate :: (Builder.Builder -> cont) -> Int -> String -> Builder.Builder -> f
+fmt :: forall str. (KnownSymbol str, Interpolate (Format str) (Format str)) => (Record '[] -> Record (Format str)) -> Builder.Builder
+fmt record = interpolate @(Format str) @(Format str) (record empty) 0 (symbolVal (Proxy @str)) mempty
 
-instance Interpolate cont cont where
+class Interpolate args rest where
+  interpolate :: Record args -> Int -> String -> Builder.Builder -> Builder.Builder
+
+instance Interpolate args '[] where
   {-# INLINE interpolate #-}
-  interpolate cont _ string acc = cont (acc <> fromString string)
+  interpolate _ _ string acc = acc <> fromString string
 
-instance (KnownNat n, KnownSymbol s, Interpolate cont f) => Interpolate cont (Arg n s -> f) where
+instance (Interpolate args as, RowHasField n args (Arg i), KnownSymbol n, KnownHash n, KnownNat i) => Interpolate args ((n :: Symbol) ':= Arg i ': as) where
   {-# INLINE interpolate #-}
-  interpolate cont start string acc (Arg s) =
-    interpolate
-      cont
+  interpolate record start string acc =
+    interpolate @args @as
+      record
       (nVal + 2)
       (drop 1 $ dropWhile (/= '}') $ drop (diff + 3) string)
       (acc <> fromString (take diff string) <> s)
-   where
-    nVal = fromIntegral $ natVal (Proxy @n)
+     where
+    Arg s = get (fromLabel @n) record
+    nVal = fromIntegral $ natVal (Proxy @i)
     diff = nVal - start

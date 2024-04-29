@@ -1,3 +1,3 @@
-module Typist (Export.Arg, Export.Format) where
+module Typist (module Export) where
 
 import Typist.Internal.Format as Export

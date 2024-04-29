@@ -24,6 +24,8 @@ import Data.Tuple (Solo)
 import GHC.OverloadedLabels (IsLabel (..))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Typist.Internal.Format (Arg (..), Format, Interpolate (..))
+import Data.Record.Anon.Simple ( empty, Record, insert )
+import Data.Record.Anon hiding (Product)
 
 class Logged a where
   default toLog :: (Show a) => a -> Builder.Builder
@@ -83,20 +85,11 @@ instance Logged (Unquoted Builder.Builder) where
 instance Logged SomeException where
   toLog (SomeException e) = fromString $ displayException e
 
-instance (Logged a) => IsLabel s (a -> Arg n s) where
-  fromLabel = Arg . toLog
-
-data WithTemplate = WithTemplate {rendered :: !Builder.Builder, template :: !Builder.Builder}
-  deriving (Show, Eq)
-
-{-# INLINE fmtt #-}
-fmtt :: forall str. (Interpolate WithTemplate (Format WithTemplate str), KnownSymbol str) => Format WithTemplate str
-fmtt = interpolate (`WithTemplate` fromString t) 0 t mempty
- where
-  t = symbolVal @str Proxy
 
 {-# INLINE fmt #-}
-fmt :: forall str. (Interpolate Builder.Builder (Format Builder.Builder str), KnownSymbol str) => Format Builder.Builder str
-fmt = interpolate id 0 t mempty
- where
-  t = symbolVal @str Proxy
+fmt :: forall str. (KnownSymbol str, Interpolate (Format str) (Format str)) => (Record '[] -> Record (Format str)) -> Builder.Builder
+fmt record = interpolate @(Format str) @(Format str) (record empty) 0 (symbolVal (Proxy @str)) mempty
+
+{-# INLINE (@=) #-}
+(@=) :: forall a n r i. (KnownSymbol n, KnownHash n, Logged a) => Field n -> a -> (Record r -> Record (n ':= Arg i : r))
+_ @= b = insert (fromLabel @n) (Arg $ toLog b)

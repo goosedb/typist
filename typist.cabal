@@ -12,10 +12,10 @@ extra-source-files: CHANGELOG.md
 
 library
     exposed-modules:  Typist.Internal.Format, Typist.Logged, Typist
-    build-depends:    base >= 4.16 && < 4.18, text
+    build-depends:    base >= 4.16 && < 4.18, text, large-anon
     hs-source-dirs:   src
     default-language: Haskell2010
-    ghc-options: -Wall
+    ghc-options: -Wall -fplugin=Data.Record.Anon.Plugin 
     default-extensions:
         DataKinds,
         TypeOperators,
@@ -39,10 +39,10 @@ test-suite typist-test
     main-is:          Test.hs
     build-depends:    base >= 4.16, typist, tasty, tasty-hunit
 
-test-suite typist-bench
+benchmark typist-bench
     default-language: Haskell2010
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Bench.hs
-    ghc-options: -O1
-    build-depends:    base >= 4.16, typist, tasty, tasty-bench, text, deepseq
+    ghc-options: -O1  -fplugin=Data.Record.Anon.Plugin 
+    build-depends:    base >= 4.16, typist, tasty, tasty-bench, text, deepseq, large-anon

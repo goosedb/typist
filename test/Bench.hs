@@ -17,9 +17,7 @@ import Test.Tasty.Bench (bench, bgroup, defaultMain, nf)
 import Typist.Logged (
   Logged (..),
   Unquoted (..),
-  WithTemplate (WithTemplate),
-  fmt,
-  fmtt,
+  fmt, (@=),
  )
 
 toStrictText = Lazy.toStrict . Builder.toLazyText
@@ -69,20 +67,20 @@ formatTest list =
         ?f = id
      in fmt
           @"1#{i0}22#{i1}333#{i2}4444#{i3}55555#{i4}666666#{i5}7777777#{i6}88888888#{i7}\
-           \999999999#{i8}1010101010#{i9}11111111111#{i10}121212121212#{i11}1313131313131#{i12}"
-          (#i0 $ get 0)
-          (#i1 $ get 1)
-          (#i2 $ get 2)
-          (#i3 $ get 3)
-          (#i4 $ get 4)
-          (#i5 $ get 5)
-          (#i6 $ get 6)
-          (#i7 $ get 7)
-          (#i8 $ get 8)
-          (#i9 $ get 9)
-          (#i10 $ get 10)
-          (#i11 $ get 11)
-          (#i12 $ get 12)
+           \999999999#{i8}1010101010#{i9}11111111111#{i10}121212121212#{i11}1313131313131#{i12}" $
+          (#i0 @= get 0) .
+          (#i1 @= get 1) .
+          (#i2 @= get 2) .
+          (#i3 @= get 3) .
+          (#i4 @= get 4) . 
+          (#i5 @= get 5) . 
+          (#i6 @= get 6) .
+          (#i7 @= get 7) .
+          (#i8 @= get 8) . 
+          (#i9 @= get 9) .
+          (#i10 @= get 10) .
+          (#i11 @= get 11) .
+          (#i12 @= get 12) 
 
 {-# NOINLINE jobs #-}
 jobs :: Int -> ([a] -> Strict.Text) -> [[a] -> Strict.Text]
