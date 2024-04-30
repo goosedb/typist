@@ -1,18 +1,27 @@
 cabal-version:      3.0
 name:               typist
-version:            0.1.0.0
+version:            0.1.0.1
 
 license:            MIT
 license-file:       LICENSE
 author:             Danil Berestov
 maintainer:         goosedb@yandex.ru
+homepage:           https://github.com/goosedb/typist
+
 
 category:           Text
-extra-source-files: CHANGELOG.md
+extra-source-files: 
+  CHANGELOG.md
+  README.md
+  results_cpu_o0.svg
+  results_cpu_o1.svg
+  results_cpu_o2.svg
+
+synopsis: Typelevel printf
 
 library
-    exposed-modules:  Typist.Internal.Format, Typist.Logged, Typist
-    build-depends:    base >= 4.16 && < 4.18, text
+    exposed-modules:  Typist.Internal.Format, Typist.TextShow, Typist
+    build-depends:    base >= 4.16 && < 4.20, text, text-show
     hs-source-dirs:   src
     default-language: Haskell2010
     ghc-options: -Wall
@@ -37,12 +46,12 @@ test-suite typist-test
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Test.hs
-    build-depends:    base >= 4.16, typist, tasty, tasty-hunit
+    build-depends:    base >= 4.16, typist, tasty, tasty-hunit, text-show
 
-test-suite typist-bench
+benchmark typist-bench
     default-language: Haskell2010
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Bench.hs
-    ghc-options: -O1
-    build-depends:    base >= 4.16, typist, tasty, tasty-bench, text, deepseq
+    ghc-options: -O2
+    build-depends:    base >= 4.16, typist, tasty, tasty-bench, text, deepseq, text-show

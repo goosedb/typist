@@ -3,12 +3,17 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Main (main) where
 
 import Test.Tasty (defaultMain, testGroup)
-import Test.Tasty.HUnit (Assertion, assertBool, testCase)
-import Typist.Logged (Unquoted (..), WithTemplate (WithTemplate), fmt, fmtt)
+import Test.Tasty.HUnit
+import TextShow (TextShow(..))
+import Data.String (IsString(..))
+import Typist (fmt)
+import Typist.TextShow
+
 
 main :: IO ()
 main = defaultMain do
@@ -17,53 +22,30 @@ main = defaultMain do
     [ testGroup
         "No template"
         [ testCase "No arguments" do
-            fmt @"Hello" `shouldBe` "Hello"
+            fmt @"Hello" id `shouldBe` "Hello"
         , testCase "One argument" do
-            fmt @"Hello, #{name}!" (#name $ Unquoted @String "Kitty") `shouldBe` "Hello, Kitty!"
+            fmt @"Hello, #{name}!" (#name #= Unquoted @String "Kitty") `shouldBe` "Hello, Kitty!"
         , testCase "Two arguments" do
-            fmt @"Hello, #{name}, do you like #{dish}?"
-              (#name $ Unquoted @String "Mike")
-              (#dish $ Unquoted @String "pasta")
-              `shouldBe` "Hello, Mike, do you like pasta?"
-        , testCase "Many agruments" do
-            fmt @"One: #{one}, two: #{two}, three: #{three}, four: #{four}, five: #{five}"
-              (#one (1 :: Int))
-              (#two True)
-              (#three 'a')
-              (#four [5 :: Int])
-              (#five ('a', False))
-              `shouldBe` "One: 1, two: True, three: 'a', four: [5], five: ('a',False)"
-        ]
-    , testGroup
-        "With template"
-        [ testCase "No arguments" do
-            fmtt @"Hello" `shouldBe` WithTemplate "Hello" "Hello"
-        , testCase "One argument" do
-            fmtt @"Hello, #{name}!" (#name $ Unquoted @String "Kitty")
-              `shouldBe` WithTemplate "Hello, Kitty!" "Hello, #{name}!"
-        , testCase "Two arguments" do
-            fmtt @"Hello, #{name}, do you like #{dish}?"
-              (#name $ Unquoted @String "Mike")
-              (#dish $ Unquoted @String "pasta")
-              `shouldBe` WithTemplate "Hello, Mike, do you like pasta?" "Hello, #{name}, do you like #{dish}?"
-        , testCase "Many agruments" do
-            fmtt @"One: #{one}, two: #{two}, three: #{three}, four: #{four}, five: #{five}"
-              (#one (1 :: Int))
-              (#two True)
-              (#three 'a')
-              (#four [5 :: Int])
-              (#five ('a', False))
-              `shouldBe` WithTemplate
-                "One: 1, two: True, three: 'a', four: [5], five: ('a',False)"
-                "One: #{one}, two: #{two}, three: #{three}, four: #{four}, five: #{five}"
+            let formatted = fmt @"Hello, #{name}, do you like #{dish}?" $
+                  (#name #= Unquoted @String "Mike") .
+                  (#dish #= Unquoted @String "pasta")
+            formatted `shouldBe` "Hello, Mike, do you like pasta?"
+        , testCase "Many arguments" do
+            let formatted = fmt @"One: #{one}, two: #{two}, three: #{three}, four: #{four}, five: #{five}" $
+                  (#one #= (1 :: Int)) .
+                  (#two #= True) .
+                  (#three #= 'a') .
+                  (#four #= [5 :: Int]) .
+                  (#five #= ('a', False))
+            formatted `shouldBe` "One: 1, two: True, three: 'a', four: [5], five: ('a',False)"
         ]
     , testGroup
         "Escaping"
-        [ testCase "Should not count escaped sequence as placeholer" do
-            fmt @"Hello, \\#{huh} #{name}" (#name $ Unquoted @String "Kitty")
+        [ testCase "Should not consider escaped sequence as placeholder" do
+            fmt @"Hello, \\#{huh} #{name}" (#name #= Unquoted @String "Kitty")
               `shouldBe` "Hello, \\#{huh} Kitty"
 
-            fmt @"Hello, #{name} \\#{huh}" (#name $ Unquoted @String "Kitty")
+            fmt @"Hello, #{name} \\#{huh}" (#name #= Unquoted @String "Kitty")
               `shouldBe` "Hello, Kitty \\#{huh}"
         ]
     ]

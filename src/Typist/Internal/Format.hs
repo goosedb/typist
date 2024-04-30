@@ -1,68 +1,81 @@
-module Typist.Internal.Format where
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE PolyKinds #-}
+
+module Typist.Internal.Format (module Typist.Internal.Format) where
 
 import Data.Data (Proxy (..))
-import Data.Kind (Type)
 import Data.String (IsString (..))
 import qualified Data.Text.Lazy.Builder as Builder
-import GHC.TypeError (ErrorMessage (..))
 import GHC.TypeLits (
   ConsSymbol,
+  ErrorMessage (..),
   KnownSymbol,
   Nat,
   Symbol,
   TypeError,
   UnconsSymbol,
+  symbolVal,
   type (+),
  )
 import GHC.TypeNats (KnownNat, natVal)
 
-type family Format r (str :: Symbol) :: Type where
-  Format r str = ContFormat r 0 (UnconsSymbol str)
+type family Format (str :: Symbol) where
+  Format str = ContFormat 0 (UnconsSymbol str)
 
 newtype Arg (n :: Nat) (s :: Symbol) = Arg Builder.Builder
 
-type family ContFormat r (n :: Nat) (a :: Maybe (Char, Symbol)) where
-  ContFormat r n (Just '( '\\', rest)) = SkipOne r (n + 1) (UnconsSymbol rest)
-  ContFormat r n (Just '( '#', rest)) = TryGetArg r n (UnconsSymbol rest)
-  ContFormat r n (Just '(a, rest)) = ContFormat r (n + 1) (UnconsSymbol rest)
-  ContFormat r n Nothing = r
+type family ContFormat (n :: Nat) (a :: Maybe (Char, Symbol)) where
+  ContFormat n ('Just '( '\\', rest)) = SkipOne (n + 1) (UnconsSymbol rest)
+  ContFormat n ('Just '( '#', rest)) = TryGetArg n (UnconsSymbol rest)
+  ContFormat n ('Just '(a, rest)) = ContFormat (n + 1) (UnconsSymbol rest)
+  ContFormat n 'Nothing = '[]
 
-type family TryGetArg r n rest where
-  TryGetArg r n (Just '( '{', rest)) =
-    Arg n (TakeName (UnconsSymbol rest)) ->
-    ContFormat r (n + 2) (UnconsSymbol (SkipName (UnconsSymbol rest)))
-  TryGetArg r n Nothing = ContFormat r n Nothing
-  TryGetArg r n (Just '(a, rest)) = ContFormat r (n + 2) (UnconsSymbol rest)
+type family TryGetArg n rest where
+  TryGetArg n ('Just '( '{', rest)) =
+    Arg n (TakeName (UnconsSymbol rest))
+      ': ContFormat (n + 2) (UnconsSymbol (SkipName (UnconsSymbol rest)))
+  TryGetArg n 'Nothing = ContFormat n 'Nothing
+  TryGetArg n ('Just '(a, rest)) = ContFormat (n + 2) (UnconsSymbol rest)
 
-type family SkipOne r (n :: Nat) (s :: Maybe (Char, Symbol)) where
-  SkipOne r n Nothing = ContFormat r n Nothing
-  SkipOne r n (Just '(a, rest)) = ContFormat r (n + 1) (UnconsSymbol rest)
+type family SkipOne (n :: Nat) (s :: Maybe (Char, Symbol)) where
+  SkipOne n 'Nothing = ContFormat n 'Nothing
+  SkipOne n ('Just '(a, rest)) = ContFormat (n + 1) (UnconsSymbol rest)
 
 type family TakeName (a :: Maybe (Char, Symbol)) :: Symbol where
-  TakeName (Just '( '}', rest)) = ""
-  TakeName (Just '(a, rest)) = ConsSymbol a (TakeName (UnconsSymbol rest))
-  TakeName 'Nothing = TypeError ('Text "Expected '}' but EOF found. Close placeholer with '}'. Example: #{name}")
+  TakeName ('Just '( '}', rest)) = ""
+  TakeName ('Just '(a, rest)) = ConsSymbol a (TakeName (UnconsSymbol rest))
+  TakeName 'Nothing = TypeError ('Text "Expected '}' but EOF found. Close placeholder with '}'. Example: #{name}")
 
 type family SkipName (a :: Maybe (Char, Symbol)) :: Symbol where
-  SkipName (Just '( '}', rest)) = rest
-  SkipName (Just '(a, rest)) = SkipName (UnconsSymbol rest)
-  SkipName Nothing = ""
+  SkipName ('Just '( '}', rest)) = rest
+  SkipName ('Just '(a, rest)) = SkipName (UnconsSymbol rest)
+  SkipName 'Nothing = ""
 
-class Interpolate cont f where
-  interpolate :: (Builder.Builder -> cont) -> Int -> String -> Builder.Builder -> f
+class Interpolate args where
+  interpolate :: Rec args -> Int -> String -> Builder.Builder -> Builder.Builder
 
-instance Interpolate cont cont where
+instance Interpolate '[] where
   {-# INLINE interpolate #-}
-  interpolate cont _ string acc = cont (acc <> fromString string)
+  interpolate _ _ string acc = acc <> fromString string
 
-instance (KnownNat n, KnownSymbol s, Interpolate cont f) => Interpolate cont (Arg n s -> f) where
+instance (Interpolate args, KnownNat i) => Interpolate (Arg i n ': args) where
   {-# INLINE interpolate #-}
-  interpolate cont start string acc (Arg s) =
-    interpolate
-      cont
+  interpolate (Arg s :& record) start string acc =
+    interpolate @args
+      record
       (nVal + 2)
       (drop 1 $ dropWhile (/= '}') $ drop (diff + 3) string)
       (acc <> fromString (take diff string) <> s)
    where
-    nVal = fromIntegral $ natVal (Proxy @n)
+    nVal = fromIntegral $ natVal (Proxy @i)
     diff = nVal - start
+
+data Rec as where
+  RNil :: Rec '[]
+  (:&) :: Arg n s -> Rec ns -> Rec (Arg n s ': ns)
+
+
+-- | See usage example next to @'Typist.TextShow.#='@ at "Typist.TextShow"
+{-# INLINE fmt #-}
+fmt :: forall str. (KnownSymbol str, Interpolate (Format str)) => (Rec '[] -> Rec (Format str)) -> Builder.Builder
+fmt record_ = interpolate @(Format str) (record_ RNil) 0 (symbolVal (Proxy @str)) mempty
