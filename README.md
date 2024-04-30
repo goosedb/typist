@@ -7,19 +7,25 @@ Core functionality is in `Typist.Internal.Format`:
 * `Arg` newtype over `Text.Lazy.Builder` which carries name of parameter and it's position in string on type-level (for perfomance goods)
 * Type class `Interpolate` which renders final _string_ on term level
 
-An example of wrapping it (and also ready to use interface) is located in `Typist.Logging`:
-* Type class `Logged` which is about `Show` for special purpose (logging, huh) 
-* Functions `fmt` which simply renders _string_ and `fmtt` which also returns template
-* `Unquoted` newtype for interpolation strings without `\"` 
+An example of wrapping it (and also ready to use interface) is located in `Typist.TextShow`:
+* `Unquoted` newtype for interpolation strings without `\"`  
+* `#=` set operator
 Example (more examples can be found in `test/Test`):
 
 ```haskell
-
-question = fmt @"Hello, #{name}, do you like #{dish}?"
-  (#name $ Unquoted @String "Mike")
-  (#dish $ Unquoted @String "pasta")
+question = fmt @"Hello, #{name}, do you like #{dish}?" $ 
+  (#name #= Unquoted @String "Mike") .
+  (#dish #= Unquoted @String "pasta")
 ```
 
-Performance is comparable with bare concatenation with `<>`. It slightly slower. Benches can be found in `test/Bench`
-
-![Alt text](./results_cpu.svg)
+Performance is comparable with bare concatenation with `<>`. Benches can be found at `test/Bench`
+### O2
+![Alt text](./results_cpu_o2.svg)
+### O1
+![Alt text](./results_cpu_o1.svg)
+### O0
+![Alt text](./results_cpu_o0.svg)
+To run benchmark use
+```
+$ cabal bench --benchmark-options '--svg results_cpu.svg'
+```
