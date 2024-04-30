@@ -20,11 +20,12 @@ question = fmt @"Hello, #{name}, do you like #{dish}?" $
 
 Performance is comparable with bare concatenation with `<>`. Benches can be found at `test/Bench`
 ### O2
-![Alt text](./results_cpu_o2.svg)
+![Alt text](https://raw.githubusercontent.com/goosedb/typist/059006de73e88111571aad0fc3f841506d96d6ec/results_cpu_o2.svg)
 ### O1
-![Alt text](./results_cpu_o1.svg)
+![Alt text](https://raw.githubusercontent.com/goosedb/typist/059006de73e88111571aad0fc3f841506d96d6ec/results_cpu_o1.svg)
 ### O0
-![Alt text](./results_cpu_o0.svg)
+![Alt text](https://raw.githubusercontent.com/goosedb/typist/059006de73e88111571aad0fc3f841506d96d6ec/results_cpu_o0.svg) 
+
 To run benchmark use
 ```
 $ cabal bench --benchmark-options '--svg results_cpu.svg'

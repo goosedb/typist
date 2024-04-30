@@ -1,14 +1,22 @@
 cabal-version:      3.0
 name:               typist
-version:            0.1.0.0
+version:            0.1.0.1
 
 license:            MIT
 license-file:       LICENSE
 author:             Danil Berestov
 maintainer:         goosedb@yandex.ru
+homepage:           https://github.com/goosedb/typist
+
 
 category:           Text
-extra-source-files: CHANGELOG.md
+extra-source-files: 
+  CHANGELOG.md
+  README.md
+  results_cpu_o0.svg
+  results_cpu_o1.svg
+  results_cpu_o2.svg
+
 synopsis: Typelevel printf
 
 library
