@@ -14,8 +14,8 @@ Example (more examples can be found in `test/Test`):
 
 ```haskell
 question = fmt @"Hello, #{name}, do you like #{dish}?" $ 
-  (#name #= Unquoted @String "Mike") .
-  (#dish #= Unquoted @String "pasta")
+  (#name #= Unquoted "Mike") .
+  (#dish #= Unquoted "pasta")
 ```
 
 Performance is comparable with bare concatenation with `<>`. Benches can be found at `test/Bench`

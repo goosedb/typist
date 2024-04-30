@@ -41,7 +41,7 @@ main = defaultMain do
         ]
     , testGroup
         "Escaping"
-        [ testCase "Should not count escaped sequence as placeholer" do
+        [ testCase "Should not consider escaped sequence as placeholder" do
             fmt @"Hello, \\#{huh} #{name}" (#name #= Unquoted @String "Kitty")
               `shouldBe` "Hello, \\#{huh} Kitty"
 
